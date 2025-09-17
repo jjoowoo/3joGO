@@ -11,7 +11,7 @@ import os
 
 # --- 페이지 설정 ---
 st.set_page_config(
-    page_title="해수면 상승 데이터 대시보드",
+    page_title="글로벌 + 한국 해수면 상승 대시보드",
     page_icon="🌊",
     layout="wide"
 )
@@ -29,7 +29,6 @@ def get_font_name():
     return None
 
 font_name = get_font_name()
-
 if font_name:
     plt.rcParams['font.family'] = font_name
     st.markdown(f"""
@@ -44,7 +43,7 @@ if font_name:
     </style>
     """, unsafe_allow_html=True)
 
-# --- 데이터 로드/전처리 함수 ---
+# --- 데이터 로드/전처리 ---
 @st.cache_data(ttl=3600)
 def load_global_data():
     url = "https://datahub.io/core/sea-level-rise/r/epa-sea-level.csv"
@@ -88,9 +87,7 @@ def create_korea_data():
         for loc, (lat, lon) in locations.items():
             base_level = 3.05*(year-years.min())
             random_noise = np.random.uniform(-0.5,0.5)
-            sea_level = base_level + random_noise
-            # 음수 방지
-            sea_level = max(sea_level, 0.1)
+            sea_level = max(base_level + random_noise, 0.1)  # 음수 방지
             data.append({
                 'year': year,
                 'location': loc,
@@ -98,22 +95,16 @@ def create_korea_data():
                 'longitude': lon,
                 'sea_level': round(sea_level,2)
             })
-    df = pd.DataFrame(data)
-    return df
+    return pd.DataFrame(data)
 
 @st.cache_data
 def convert_df_to_csv(df):
     return df.to_csv(index=False).encode('utf-8-sig')
 
-# --- 1. 글로벌 데이터 ---
-st.title("🌊 해수면 상승 데이터 대시보드")
-st.markdown("---")
-st.header("1. 전지구 평균 해수면 변화")
-
+# --- 사이드바 설정 ---
+st.sidebar.header("📊 데이터 설정")
+# 글로벌 날짜
 global_df = load_global_data()
-
-# 글로벌 날짜 필터
-st.sidebar.header("📊 글로벌 데이터 설정")
 g_start, g_end = st.sidebar.date_input(
     "글로벌 기간 필터",
     value=[global_df['date'].min().date(), global_df['date'].max().date()],
@@ -122,11 +113,20 @@ g_start, g_end = st.sidebar.date_input(
 )
 g_start_dt = pd.to_datetime(g_start)
 g_end_dt = pd.to_datetime(g_end)
+smoothing_window = st.sidebar.slider("글로벌 이동 평균 스무딩",1,24,5)
 
-smoothing_window = st.sidebar.slider(
-    "글로벌 이동 평균 스무딩",1,24,5,help="데이터 부드럽게 표시"
+# 한국 연도
+korea_df = create_korea_data()
+k_year_range = st.sidebar.slider(
+    "한국 연도 범위 선택",
+    int(korea_df['year'].min()),
+    int(korea_df['year'].max()),
+    (int(korea_df['year'].min()),int(korea_df['year'].max()))
 )
 
+# --- 1. 글로벌 차트 ---
+st.title("🌊 글로벌 + 한국 해수면 상승 비교")
+st.header("1. 글로벌 평균 해수면 변화")
 filtered_global_df = global_df[(global_df['date']>=g_start_dt)&(global_df['date']<=g_end_dt)]
 filtered_global_df['smoothed_value'] = filtered_global_df['value'].rolling(
     window=smoothing_window,min_periods=1,center=True
@@ -136,7 +136,7 @@ fig_global = px.line(
     filtered_global_df,
     x='date',
     y=['value','smoothed_value'],
-    labels={'date':'연도','value':'해수면 높이 (mm)'},
+    labels={'date':'연도','value':'해수면(mm)'},
     title="전지구 평균 해수면 변화",
     template="plotly_white"
 )
@@ -153,40 +153,34 @@ st.download_button(
     mime="text/csv"
 )
 
-# --- 2. 한국 30년 데이터 ---
+# --- 2. 한국 지도 + 통계 ---
 st.markdown("---")
-st.header("2. 한국 연안 최근 30년 해수면 상승 데이터")
-
-korea_df = create_korea_data()
-st.sidebar.header("📊 한국 데이터 설정")
-k_year_range = st.sidebar.slider(
-    "한국 연도 범위 선택",
-    int(korea_df['year'].min()),
-    int(korea_df['year'].max()),
-    (int(korea_df['year'].min()),int(korea_df['year'].max()))
-)
+st.header("2. 한국 주요 연안 해수면 상승 지도 (애니메이션)")
 filtered_korea_df = korea_df[(korea_df['year']>=k_year_range[0]) & (korea_df['year']<=k_year_range[1])]
 
-# 한국 주요 지표
-col1,col2,col3 = st.columns(3)
+# 한국 통계
+col1,col2,col3,col4 = st.columns(4)
 with col1:
     avg_increase = round(filtered_korea_df['sea_level'].diff().mean(),2)
-    st.metric("한국 연안 연평균 해수면 상승",f"{avg_increase} mm")
+    st.metric("한국 연안 연평균 상승",f"{avg_increase} mm")
 with col2:
     total_increase = round(filtered_korea_df['sea_level'].max()-filtered_korea_df['sea_level'].min(),2)
     st.metric("한국 30년 누적 상승",f"{total_increase} mm")
 with col3:
     st.metric("관측 지점 수",filtered_korea_df['location'].nunique())
-st.markdown("<br>",unsafe_allow_html=True)
+with col4:
+    korea_mean = filtered_korea_df.groupby('year')['sea_level'].mean().mean()
+    global_mean = filtered_global_df['value'].mean()
+    factor = round(korea_mean/global_mean,2) if global_mean>0 else 0
+    st.metric("한반도 상승 속도 비교",f"{factor}배 글로벌 평균 대비")
 
 # 한국 지도 애니메이션
-st.subheader("📊 한국 주요 연안 해수면 상승 지도 (애니메이션)")
 fig_map = px.scatter_geo(
     filtered_korea_df,
     lat='latitude',
     lon='longitude',
     color='sea_level',
-    size='sea_level',  # 이미 음수 방지 처리됨
+    size='sea_level',
     hover_name='location',
     hover_data=['year','sea_level'],
     animation_frame='year',
@@ -208,3 +202,43 @@ st.download_button(
     file_name="korea_sea_level_30yrs.csv",
     mime="text/csv"
 )
+
+# 한국 지점별 상승 비교 차트
+st.subheader("한국 주요 연안 지점별 연도별 해수면 상승")
+fig_korea_line = px.line(
+    filtered_korea_df,
+    x='year',
+    y='sea_level',
+    color='location',
+    labels={'year':'연도','sea_level':'해수면(mm)'},
+    title="지점별 상승 추이",
+    template="plotly_white"
+)
+if font_name:
+    fig_korea_line.update_layout(font=dict(family=font_name))
+st.plotly_chart(fig_korea_line,use_container_width=True)
+
+# --- 3. 글로벌 vs 한국 평균 비교 ---
+st.markdown("---")
+st.header("3. 글로벌 vs 한국 평균 비교")
+korea_avg = filtered_korea_df.groupby('year')['sea_level'].mean().reset_index()
+korea_avg['date'] = pd.to_datetime(korea_avg['year'].astype(str)+"-01-01")
+korea_avg['group'] = '한국 평균'
+
+combined_df = pd.concat([
+    filtered_global_df[['date','value','group']].rename(columns={'value':'sea_level'}),
+    korea_avg[['date','sea_level','group']]
+])
+
+fig_compare = px.line(
+    combined_df,
+    x='date',
+    y='sea_level',
+    color='group',
+    labels={'date':'연도','sea_level':'해수면(mm)'},
+    title="글로벌 평균 vs 한국 연안 평균 해수면 상승 비교",
+    template="plotly_white"
+)
+if font_name:
+    fig_compare.update_layout(font=dict(family=font_name))
+st.plotly_chart(fig_compare,use_container_width=True)
