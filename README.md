@@ -1,19 +1,39 @@
-# 🎈 Blank app template
+# 🌊 A Piece of CHEESE - 해수면 상승과 우리의 식생활 변화 대시보드
 
-A simple Streamlit app template for you to modify!
+이 프로젝트는 **해수면 상승(Sea Level Rise)** 과 **인간의 식생활 변화**를 주제로,
+데이터 시각화 및 분석을 통해 미래의 환경과 건강 문제를 살펴보는 대시보드입니다.  
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+## 📌 주요 기능
+- **해수면 상승 데이터 시각화**
+  - 최근 10년간 전 세계 평균 해수면 상승 추세
+  - 특정 지역(예: 한국 연안, 태평양 도서국가)별 비교 그래프
+  - 기후변화 시나리오(RCP 4.5, RCP 8.5)에 따른 예측 모델
 
-### How to run it on your own machine
+- **식생활 변화 분석**
+  - 해수면 상승으로 인한 **수산자원(어류, 해조류) 분포 변화**
+  - 곡물 및 식량 수급에 미치는 영향
+  - 환경 변화가 **영양 균형(단백질·탄수화물·지방 섭취 비율)** 에 미치는 영향
 
-1. Install the requirements
+- **상관관계 탐색**
+  - 해수면 상승과 농업 생산량 감소
+  - 식습관(육류·수산물 소비) 변화와 탄소 배출량 관계
+  - 기후 변화에 따른 새로운 식품(예: 대체 단백질, 해양 자원 활용) 등장
 
-   ```
-   $ pip install -r requirements.txt
-   ```
+## 🛠 기술 스택
+- **Python**: 데이터 처리 및 분석
+- **Pandas / Numpy**: 데이터 전처리
+- **Plotly / Seaborn / Matplotlib**: 시각화
+- **Streamlit**: 대시보드 인터페이스
+- **Geopandas / Shapely / PyProj**: 지도 및 공간 분석
 
-2. Run the app
+## 📊 데이터 출처 (예시)
+- NASA Sea Level Change Data
+- FAO (세계 식량농업기구) 통계
+- UN IPCC 기후변화 보고서
+- 한국 해양과학기술원(KIOST)
 
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+---
+
+👉 이렇게 정리해 두면, `requirements.txt` 는 기술 설치용, `README.md` 는 프로젝트 소개/내용 확장용으로 딱 맞습니다.  
+
+원하시면 제가 `README.md` 안에 간단한 **샘플 그래프 코드(python+plotly)** 도 같이 넣어드릴까요?
